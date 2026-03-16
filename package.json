@@ -1,0 +1,66 @@
+{
+  "name": "catch-chain",
+  "version": "1.0.0",
+  "description": "Fluent, composable, type-safe error matching and recovery for promises",
+  "keywords": [
+    "promise",
+    "catch",
+    "error",
+    "fluent"
+  ],
+  "homepage": "https://github.com/seaw01f/catch-chain",
+  "bugs": {
+    "url": "https://github.com/seaw01f/catch-chain/issues"
+  },
+  "author": "Lubos Magda <seawolf1@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seaw01f/catch-chain.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "build": "bunchee",
+    "test": "vitest run",
+    "test:dev": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "^10.3.0",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/eslint": "^9.6.1",
+    "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "bunchee": "^6.10.0",
+    "eslint": "^10.0.3",
+    "jiti": "^2.6.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vitest": "^4.1.0"
+  }
+}

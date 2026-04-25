@@ -22,9 +22,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
+          cache: 'npm'
 
       - name: install
         run: npm install
+
+      - name: typecheck
+        run: npm run typecheck
 
       - name: lint
         run: npm run lint

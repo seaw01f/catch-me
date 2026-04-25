@@ -1,5 +1,13 @@
 # catch-chain
 
+[![npm version](https://img.shields.io/npm/v/catch-chain)](https://www.npmjs.com/package/catch-chain)
+[![npm downloads](https://img.shields.io/npm/dm/catch-chain)](https://www.npmjs.com/package/catch-chain)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/catch-chain)](https://bundlephobia.com/package/catch-chain)
+[![license](https://img.shields.io/npm/l/catch-chain)](./LICENSE)
+[![CI](https://github.com/seaw01f/catch-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/seaw01f/catch-chain/actions/workflows/ci.yml)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue)
+![zero dependencies](https://img.shields.io/badge/dependencies-0-green)
+
 Fluent error matching and recovery for JavaScript promises.
 
 ```ts

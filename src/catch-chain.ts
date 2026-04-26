@@ -10,11 +10,11 @@ class CatchChain<R> {
   }
 
   public static onError<E extends Error>(matcher: ErrorMatcher<E>): CatchChain<E> {
-    return new CatchChain(async (value: E) => matcher(value))
+    return new CatchChain(async (value: E): Promise<boolean> => matcher(value))
   }
 
   public do(effect: ErrorEffect<R>): CatchChain<R> {
-    return new CatchChain(async (value) => {
+    return new CatchChain(async (value): Promise<boolean> => {
       const testResult = await this.test(value)
       if (testResult) {
         await effect(value)
@@ -33,14 +33,16 @@ class CatchChain<R> {
   }
 
   public return<V>(value: V | ReasonMapper<R, V>): ReasonMapper<R, V> {
-    const valueProducer: SinkValueProducer<R, V> = async (reason: R) => value instanceof Function ? await value(reason) : value
+    const valueProducer: SinkValueProducer<R, V> = async (reason: R): Promise<V> => {
+      return value instanceof Function ? await value(reason) : await value
+    }
     return this.sink(valueProducer)
   }
 
   public throw<E>(error?: E | ReasonMapper<R, E>): ReasonMapper<R, never> {
-    const valueProducer: SinkValueProducer<R, never> = async (reason: R) => {
+    const valueProducer: SinkValueProducer<R, never> = async (reason: R): Promise<never> => {
       if (error === undefined) throw reason
-      throw error instanceof Function ? await error(reason) : error
+      throw error instanceof Function ? await error(reason) : await error
     }
     return this.sink(valueProducer)
   }

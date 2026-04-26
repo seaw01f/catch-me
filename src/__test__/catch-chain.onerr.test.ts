@@ -133,7 +133,7 @@ describe('onErr', () => {
         expect(effect).not.toHaveBeenCalled()
       })
 
-      it('should propagate error (instead of the intended error) when the effect throws', async () => {
+      it('should throw effect error (instead of the intended error) when the effect fails', async () => {
         const effect: ErrorEffect<Error> = () => {
           throw new Error('Effect failed')
         }
@@ -158,7 +158,7 @@ describe('onErr', () => {
         expect(effect).not.toHaveBeenCalled()
       })
 
-      it('should propagate error (instead of the intended error) when the effect throws', async () => {
+      it('should throw effect error (instead of the intended error) when the effect fails', async () => {
         const failingEffect: ErrorEffect<Error> = () => {
           throw new Error('Effect failed')
         }
@@ -186,7 +186,7 @@ describe('onErr', () => {
         expect(effect2).not.toHaveBeenCalled()
       })
 
-      it('should propagate error (instead of the intended error) when the sync effect throws', async () => {
+      it('should throw effect error (instead of the intended error) when the sync effect fails', async () => {
         const failingEffect: ErrorEffect<Error> = (): never => {
           throw new Error('Effect failed')
         }
@@ -194,7 +194,7 @@ describe('onErr', () => {
         await expect(asyncFn('matchError').catch(onErr(matcher).do(failingEffect).do(effect2).throw(error))).rejects.toThrow('Effect failed')
       })
 
-      it('should propagate error (instead of the intended error) when the async effect throws', async () => {
+      it('should throw effect error (instead of the intended error) when the async effect fails', async () => {
         const failingEffect: ErrorEffect<Error> = async (): Promise<never> => {
           throw new Error('Effect failed')
         }

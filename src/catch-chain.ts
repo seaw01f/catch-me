@@ -1,4 +1,10 @@
-import type { ErrorEffect, ReasonMapper, SinkValueProducer, TestPredicate } from './catch-chain.types.js'
+import type {
+  AsyncReasonMapper,
+  ErrorEffect,
+  ReasonMapper,
+  SinkValueProducer,
+  TestPredicate,
+} from './catch-chain.types.js'
 import type { ErrorMatcher } from './error-matcher.types.js'
 import { anyError } from './error-matcher.js'
 
@@ -23,7 +29,7 @@ class CatchChain<R> {
     })
   }
 
-  private sink<V>(valueProducer: SinkValueProducer<R, V>): ReasonMapper<R, V> {
+  private sink<V>(valueProducer: SinkValueProducer<R, V>): AsyncReasonMapper<R, V> {
     return async (reason: R): Promise<V> => {
       if (await this.test(reason)) {
         return valueProducer(reason)
@@ -32,17 +38,17 @@ class CatchChain<R> {
     }
   }
 
-  public return<V>(value: V | ReasonMapper<R, V>): ReasonMapper<R, V> {
+  public return<V>(value: V | ReasonMapper<R, V> | AsyncReasonMapper<R, V>): AsyncReasonMapper<R, V> {
     const valueProducer: SinkValueProducer<R, V> = async (reason: R): Promise<V> => {
-      return value instanceof Function ? await value(reason) : await value
+      return value instanceof Function ? await value(reason) : value
     }
     return this.sink(valueProducer)
   }
 
-  public throw<E>(error?: E | ReasonMapper<R, E>): ReasonMapper<R, never> {
+  public throw<E>(error?: E | ReasonMapper<R, E> | AsyncReasonMapper<R, E>): AsyncReasonMapper<R, never> {
     const valueProducer: SinkValueProducer<R, never> = async (reason: R): Promise<never> => {
       if (error === undefined) throw reason
-      throw error instanceof Function ? await error(reason) : await error
+      throw error instanceof Function ? await error(reason) : error
     }
     return this.sink(valueProducer)
   }

@@ -1,4 +1,4 @@
-import type { ErrorEffect, ReasonMapper } from '../catch-chain.types.js'
+import type { AsyncReasonMapper, ErrorEffect, ReasonMapper } from '../catch-chain.types.js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ErrorMatcher } from '../error-matcher.types.js'
 import { faker } from '@faker-js/faker'
@@ -54,7 +54,7 @@ describe('onErr', () => {
 
     describe('async return value mapper', () => {
       const returnValue = randomReturnValue()
-      const returnValueMapper: ReasonMapper<Error, typeof returnValue> = async () => returnValue
+      const returnValueMapper: AsyncReasonMapper<Error, typeof returnValue> = async () => returnValue
 
       it('should return the mapper value when error match', async () => {
         await expect(asyncFn('matchError').catch(onErr(matcher).return(returnValueMapper))).resolves.toBe(returnValue)
@@ -102,7 +102,7 @@ describe('onErr', () => {
     })
 
     describe('async throw error mapper', () => {
-      const errorMapper: ReasonMapper<Error, Error> = async (reason: unknown) => new Error(`Ooops: ${reason}`)
+      const errorMapper: AsyncReasonMapper<Error, Error> = async (reason: unknown) => new Error(`Ooops: ${reason}`)
 
       it('should throw the mapped error when error match', async () => {
         await expect(asyncFn('matchError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('Ooops: Error: matchError')

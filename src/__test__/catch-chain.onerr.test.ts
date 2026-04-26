@@ -7,7 +7,7 @@ import { onErr } from '../catch-chain.js'
 describe('onErr', () => {
   afterEach(() => vi.clearAllMocks())
 
-  const asyncFn = async (reason: 'matchError' | 'ignoreError') => {
+  const asyncFn = async (reason: 'matchError' | 'ignoreError'): Promise<never> => {
     throw new Error(reason)
   }
   const matcher: ErrorMatcher<Error> = (reason: unknown): reason is Error => reason instanceof Error && reason.message === 'matchError'
@@ -50,6 +50,14 @@ describe('onErr', () => {
       it('should throw the original error when error miss', async () => {
         await expect(asyncFn('ignoreError').catch(onErr(matcher).return(returnValueMapper))).rejects.toThrow('ignoreError')
       })
+
+      it('should throw mapper error (instead of recovering) when the mapper fails', async () => {
+        const failingMapper: ReasonMapper<Error, never> = (): never => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(failingMapper))).rejects.toThrow('Mapper failed')
+      })
     })
 
     describe('async return value mapper', () => {
@@ -62,6 +70,14 @@ describe('onErr', () => {
 
       it('should throw the original error when error miss', async () => {
         await expect(asyncFn('ignoreError').catch(onErr(matcher).return(returnValueMapper))).rejects.toThrow('ignoreError')
+      })
+
+      it('should throw mapper error (instead of recovering) when the mapper fails', async () => {
+        const failingMapper: AsyncReasonMapper<Error, never> = async (): Promise<never> => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(failingMapper))).rejects.toThrow('Mapper failed')
       })
     })
   })
@@ -99,6 +115,14 @@ describe('onErr', () => {
       it('should throw the original error when error miss', async () => {
         await expect(asyncFn('ignoreError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('ignoreError')
       })
+
+      it('should throw mapper error (instead of the mapped error) when the mapper fails', async () => {
+        const failingMapper: ReasonMapper<Error, never> = (): never => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(failingMapper))).rejects.toThrow('Mapper failed')
+      })
     })
 
     describe('async throw error mapper', () => {
@@ -110,6 +134,14 @@ describe('onErr', () => {
 
       it('should throw the original error when error miss', async () => {
         await expect(asyncFn('ignoreError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('ignoreError')
+      })
+
+      it('should throw mapper error (instead of the mapped error) when the mapper fails', async () => {
+        const failingMapper: AsyncReasonMapper<Error, never> = async (): Promise<never> => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(failingMapper))).rejects.toThrow('Mapper failed')
       })
     })
   })
@@ -134,11 +166,11 @@ describe('onErr', () => {
       })
 
       it('should throw effect error (instead of the intended error) when the effect fails', async () => {
-        const effect: ErrorEffect<Error> = () => {
+        const failingEffect: ErrorEffect<Error> = (): never => {
           throw new Error('Effect failed')
         }
 
-        await expect(asyncFn('matchError').catch(onErr(matcher).do(effect).throw(error))).rejects.toThrow('Effect failed')
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(failingEffect).throw(error))).rejects.toThrow('Effect failed')
       })
     })
 
@@ -159,7 +191,7 @@ describe('onErr', () => {
       })
 
       it('should throw effect error (instead of the intended error) when the effect fails', async () => {
-        const failingEffect: ErrorEffect<Error> = () => {
+        const failingEffect: ErrorEffect<Error> = async (): Promise<never> => {
           throw new Error('Effect failed')
         }
 

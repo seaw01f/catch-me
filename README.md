@@ -17,7 +17,7 @@ await fetchUser(id)
   .catch(onAnyErr.throw(err => new AppError(`Unexpected: ${err.message}`)))
 ```
 
-No more `catch` blocks with nested `if/else` chains. Define what to match, what to do, and how to recover — in a readable, composable chain.
+No more `catch` blocks with nested `if/else` chains. Define what to match, what to do, and how to recover - in a readable, composable chain.
 
 ## Install
 
@@ -52,7 +52,8 @@ await fetchUser(id)
   .catch(onAnyErr.do(reportToSentry).throw(err => new AppError(`Unexpected: ${err.message}`)))
 ```
 
-Each `.catch()` handles one case. Unmatched errors pass through to the next handler — just like multi-catch in Java or pattern matching in Rust.
+- Each `.catch()` handles one case.
+- Unmatched errors pass through to the next handler - just like multi-catch in Java or pattern matching in Rust.
 
 ## API
 
@@ -69,7 +70,7 @@ const isNotFound: ErrorMatcher<NotFoundError> =
 await fetchUser(id).catch(onErr(isNotFound).return(null))
 ```
 
-A matcher is a [type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) — it receives `unknown` and narrows to a specific error type. This gives you full type safety in `.do()` and `.return()`/`.throw()` callbacks.
+A matcher is a [type guard](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) - it receives `unknown` and narrows to a specific error type. This gives you full type safety in `.do()` and `.return()`/`.throw()` callbacks.
 
 ### `onAnyErr`
 
@@ -85,67 +86,76 @@ Non-`Error` rejections (strings, objects, etc.) pass through unhandled.
 
 ### `.do(effect)`
 
-Run a side effect when the error matches. Returns the chain for further chaining. The effect can be sync or async.
+**[Pipe operation]** Run a side effect when the error matches. Returns the chain for further chaining. The effect can be sync or async.
 
 ```ts
-// Log and recover
-.catch(onAnyErr.do(err => console.error(err)).return(defaults))
-
-// Multiple effects, executed in order
+// Sync effect - log and recover
 .catch(onAnyErr
-  .do(err => metrics.increment('errors'))
-  .do(err => logger.error(err))
-  .throw())
-
+  .do(err => console.error(err))
+  .return(defaults))
+  
 // Async effect
 .catch(onAnyErr
   .do(async err => await alertOncall(err))
   .throw(new ServiceUnavailableError()))
-```
 
-If the effect throws, its error replaces the original.
+// Multiple effects, executed in order
+.catch(onAnyErr
+  .do(err => metrics.increment('errors'))
+  .do(logger.error)
+  .throw())
+```
 
 ### `.return(value)`
 
-**Terminal.** Recover from the error by resolving the promise with `value`. If the error doesn't match, it's re-thrown unchanged.
+**[Terminal operation]** Recover from the error by resolving the promise with `value`. If the error doesn't match, it's re-thrown unchanged.
 
 ```ts
 // Static value
 .catch(onErr(isNotFound).return(null))
 
-// Compute from the error
-.catch(onErr(isNotFound).return(async err => ({
-  error: err.message,
-  fallback: true,
-})))
+// Sync mapper - derive a value from the error
+.catch(onErr(isNotFound).return(err => defaultItemFor(err.resourceId)))
+
+// Async mapper - derive a value from the error
+.catch(onErr(isNotFound).return(async err => await fetchFallback(err.resourceId)))
 ```
 
 When `value` is a function, it's called with the matched error and its return value is used.
 
 ### `.throw(error?)`
 
-**Terminal.** Re-throw the original error, replace it, or map it. If the error doesn't match, the original is re-thrown unchanged.
+**[Terminal operation]** Re-throw the original error, replace it, or map it. If the error doesn't match, the original is re-thrown unchanged.
 
 ```ts
-// No args — re-throw original (useful after side effects)
+// No args - re-throw original (useful after side effects)
 .catch(onErr(isDatabaseError)
   .do(err => logger.error(err))
   .throw())
 
-// Constant — replace with a different error
+// Constant - replace with a different error
 .catch(onErr(isDatabaseError)
   .throw(new AppError('Something went wrong')))
 
-// Mapper — transform the error
+// Sync mapper - transform the error
 .catch(onErr(isDatabaseError)
   .throw(err => new AppError(`DB failed: ${err.code}`)))
+
+// Async mapper - transform the error
+.catch(onErr(isDatabaseError)
+  .throw(async err => new AppError(`DB failed: ${await resolveCode(err)}`)))
 ```
+
+### Effects and producers should not throw
+
+Effects (`.do()`) and value/error producers (`.return()` / `.throw()` callbacks) are expected to not throw or reject.
+The library does not catch errors from these functions - if one throws, the thrown error replaces the original and propagates to the caller.
 
 ## Patterns
 
 ### Multi-catch
 
-Chain multiple `.catch()` calls — each handles one error type. Unmatched errors fall through.
+Chain multiple `.catch()` calls - each handles one error type. Unmatched errors fall through.
 
 ```ts
 const user = await fetchUser(id)
@@ -189,13 +199,13 @@ await saveDocument(doc)
 
 ### Effect-only handling
 
-Use `.do()` with `.return(undefined)` when you want to observe the error without changing the outcome.
+Use `.do()` with `.throw()` when you want to observe the error without changing the outcome.
 
 ```ts
 await backgroundSync()
   .catch(onAnyErr
     .do(err => telemetry.record('sync_failed', err))
-    .return(undefined))
+    .throw())
 ```
 
 ## Types
@@ -208,14 +218,14 @@ A custom matcher is a type guard with this shape:
 type ErrorMatcher<E extends Error> = (reason: unknown) => reason is E
 ```
 
-The `.do()`, `.return()`, and `.throw()` callbacks receive the narrowed type from your matcher — no manual annotations needed.
+The `.do()`, `.return()`, and `.throw()` callbacks receive the narrowed type from your matcher - no manual annotations needed.
 
 ## Design
 
-- **Match or pass through** — unmatched errors propagate unchanged, enabling composable multi-catch chains
-- **Type-safe** — matchers are type guards, so `.do()`, `.return()`, and `.throw()` callbacks receive the narrowed error type
-- **Zero dependencies** — only uses native `Error`, `Promise`, and `instanceof`
-- **Tiny** — under 1.5 KB, ships ESM + CJS with full TypeScript declarations
+- **Match or pass through** - unmatched errors propagate unchanged, enabling composable multi-catch chains
+- **Type-safe** - matchers are type guards, so `.do()`, `.return()`, and `.throw()` callbacks receive the narrowed error type
+- **Zero dependencies** - only uses native `Error`, `Promise`, and `instanceof`
+- **Tiny** - under 1.5 KB, ships ESM + CJS with full TypeScript declarations
 
 ## License
 

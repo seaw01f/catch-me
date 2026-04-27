@@ -1,0 +1,238 @@
+import type { AsyncReasonMapper, ErrorEffect, ReasonMapper } from '../catch-chain.types.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ErrorMatcher } from '../error-matcher.types.js'
+import { faker } from '@faker-js/faker'
+import { onErr } from '../catch-chain.js'
+
+describe('onErr', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  const asyncFn = async (reason: 'matchError' | 'ignoreError'): Promise<never> => {
+    throw new Error(reason)
+  }
+  const matcher: ErrorMatcher<Error> = (reason: unknown): reason is Error => reason instanceof Error && reason.message === 'matchError'
+
+  describe('return sink', () => {
+    const randomReturnValue = faker.helpers.arrayElement([
+      () => undefined,
+      () => null,
+      faker.datatype.boolean,
+      faker.number.int,
+      faker.number.bigInt,
+      faker.number.float,
+      faker.lorem.text,
+      () => Symbol('unique'),
+      () => ['foo', 'bar', 'baz'],
+      () => ({ foo: 'bar' }),
+      // () => (x: number) => x + 1, // function is considered to be a return value producer
+    ])
+
+    describe('constant return value', () => {
+      const returnValue = randomReturnValue()
+
+      it('should return the constant value when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(returnValue))).resolves.toBe(returnValue)
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).return(returnValue))).rejects.toThrow('ignoreError')
+      })
+    })
+
+    describe('sync return value mapper', () => {
+      const returnValue = randomReturnValue()
+      const returnValueMapper: ReasonMapper<Error, typeof returnValue> = () => returnValue
+
+      it('should return the mapper value when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(returnValueMapper))).resolves.toBe(returnValue)
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).return(returnValueMapper))).rejects.toThrow('ignoreError')
+      })
+
+      it('should throw mapper error (instead of recovering) when the mapper fails', async () => {
+        const failingMapper: ReasonMapper<Error, never> = (): never => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(failingMapper))).rejects.toThrow('Mapper failed')
+      })
+    })
+
+    describe('async return value mapper', () => {
+      const returnValue = randomReturnValue()
+      const returnValueMapper: AsyncReasonMapper<Error, typeof returnValue> = async () => returnValue
+
+      it('should return the mapper value when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(returnValueMapper))).resolves.toBe(returnValue)
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).return(returnValueMapper))).rejects.toThrow('ignoreError')
+      })
+
+      it('should throw mapper error (instead of recovering) when the mapper fails', async () => {
+        const failingMapper: AsyncReasonMapper<Error, never> = async (): Promise<never> => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).return(failingMapper))).rejects.toThrow('Mapper failed')
+      })
+    })
+  })
+
+  describe('throw sink', () => {
+    describe('no error value', () => {
+      it('should throw the original error when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw())).rejects.toThrow('matchError')
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).throw())).rejects.toThrow('ignoreError')
+      })
+    })
+
+    describe('constant error value', () => {
+      const error = new Error('Ooops')
+
+      it('should throw the constant error when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(error))).rejects.toThrow(error)
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).throw(error))).rejects.toThrow('ignoreError')
+      })
+    })
+
+    describe('sync throw error mapper', () => {
+      const errorMapper: ReasonMapper<Error, Error> = (reason: unknown) => new Error(`Ooops: ${reason}`)
+
+      it('should throw the mapped error when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('Ooops: Error: matchError')
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('ignoreError')
+      })
+
+      it('should throw mapper error (instead of the mapped error) when the mapper fails', async () => {
+        const failingMapper: ReasonMapper<Error, never> = (): never => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(failingMapper))).rejects.toThrow('Mapper failed')
+      })
+    })
+
+    describe('async throw error mapper', () => {
+      const errorMapper: AsyncReasonMapper<Error, Error> = async (reason: unknown) => new Error(`Ooops: ${reason}`)
+
+      it('should throw the mapped error when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('Ooops: Error: matchError')
+      })
+
+      it('should throw the original error when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).throw(errorMapper))).rejects.toThrow('ignoreError')
+      })
+
+      it('should throw mapper error (instead of the mapped error) when the mapper fails', async () => {
+        const failingMapper: AsyncReasonMapper<Error, never> = async (): Promise<never> => {
+          throw new Error('Mapper failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).throw(failingMapper))).rejects.toThrow('Mapper failed')
+      })
+    })
+  })
+
+  describe('do effect', () => {
+    const error = new Error('Ooops')
+
+    describe('sync effect', () => {
+      const effect = vi.fn<ErrorEffect<Error>>(() => {})
+
+      it('should execute sync effect when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(effect).throw(error))).rejects.toThrow()
+
+        expect(effect).toHaveBeenCalledOnce()
+        expect(effect).toHaveBeenCalledWith(expect.objectContaining({ message: 'matchError' }))
+      })
+
+      it('should not execute sync effect when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).do(effect).throw(error))).rejects.toThrow()
+
+        expect(effect).not.toHaveBeenCalled()
+      })
+
+      it('should throw effect error (instead of the intended error) when the effect fails', async () => {
+        const failingEffect: ErrorEffect<Error> = (): never => {
+          throw new Error('Effect failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(failingEffect).throw(error))).rejects.toThrow('Effect failed')
+      })
+    })
+
+    describe('async effect', () => {
+      const effect = vi.fn<ErrorEffect<Error>>(async () => {})
+
+      it('should execute async effect when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(effect).throw(error))).rejects.toThrow()
+
+        expect(effect).toHaveBeenCalledOnce()
+        expect(effect).toHaveBeenCalledWith(expect.objectContaining({ message: 'matchError' }))
+      })
+
+      it('should not execute async effect when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).do(effect).throw(error))).rejects.toThrow()
+
+        expect(effect).not.toHaveBeenCalled()
+      })
+
+      it('should throw effect error (instead of the intended error) when the effect fails', async () => {
+        const failingEffect: ErrorEffect<Error> = async (): Promise<never> => {
+          throw new Error('Effect failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(failingEffect).throw(error))).rejects.toThrow('Effect failed')
+      })
+    })
+
+    describe('sync and async effect', () => {
+      const effect1 = vi.fn<ErrorEffect<Error>>(() => {})
+      const effect2 = vi.fn<ErrorEffect<Error>>(async () => {})
+
+      it('should execute multiple chained effects in order when error match', async () => {
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(effect1).do(effect2).throw(error))).rejects.toThrow()
+
+        expect(effect1).toHaveBeenCalledOnce()
+        expect(effect2).toHaveBeenCalledOnce()
+        expect(effect1.mock.invocationCallOrder[0]!).toBeLessThan(effect2.mock.invocationCallOrder[0]!)
+      })
+
+      it('should not execute any chained effects when error miss', async () => {
+        await expect(asyncFn('ignoreError').catch(onErr(matcher).do(effect1).do(effect2).throw(error))).rejects.toThrow()
+
+        expect(effect1).not.toHaveBeenCalled()
+        expect(effect2).not.toHaveBeenCalled()
+      })
+
+      it('should throw effect error (instead of the intended error) when the sync effect fails', async () => {
+        const failingEffect: ErrorEffect<Error> = (): never => {
+          throw new Error('Effect failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(failingEffect).do(effect2).throw(error))).rejects.toThrow('Effect failed')
+      })
+
+      it('should throw effect error (instead of the intended error) when the async effect fails', async () => {
+        const failingEffect: ErrorEffect<Error> = async (): Promise<never> => {
+          throw new Error('Effect failed')
+        }
+
+        await expect(asyncFn('matchError').catch(onErr(matcher).do(effect1).do(failingEffect).throw(error))).rejects.toThrow('Effect failed')
+      })
+    })
+  })
+})

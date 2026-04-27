@@ -1,1 +1,1 @@
-export { onAnyErr, onErr } from './catch-chain.js'
+export { onErr } from './catch-chain.js'

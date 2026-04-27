@@ -6,7 +6,6 @@ import type {
   TestPredicate,
 } from './catch-chain.types.js'
 import type { ErrorMatcher } from './error-matcher.types.js'
-import { anyError } from './error-matcher.js'
 
 class CatchChain<R> {
   private readonly test: TestPredicate<R>
@@ -54,5 +53,25 @@ class CatchChain<R> {
   }
 }
 
+/**
+ * Create a catch chain that activates when `matcher` narrows the rejection reason.
+ *
+ * @example
+ * ```ts
+ * // Match a specific error type
+ * .catch(onErr(isNotFound).return(null))
+ *
+ * // Side effect, then re-throw
+ * .catch(onErr(isTimeout).do(logWarning).throw())
+ *
+ * // Derive a recovery value from the error
+ * .catch(onErr(isNotFound).return(err => defaultItemFor(err.resourceId)))
+ *
+ * // Replace the error
+ * .catch(onErr(isDatabaseError).throw(err => new AppError(`DB failed: ${err.code}`)))
+ *
+ * // Log and re-throw
+ * .catch(onErr(anyError).do(err => logger.error(err)).throw())
+ * ```
+ */
 export const onErr = <E extends Error>(matcher: ErrorMatcher<E>) => CatchChain.onError(matcher)
-export const onAnyErr = onErr(anyError)
